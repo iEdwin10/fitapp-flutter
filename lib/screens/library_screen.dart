@@ -15,17 +15,35 @@ class LibraryScreen extends StatefulWidget {
 
 class _LibraryScreenState extends State<LibraryScreen> {
   String _query = '';
+  MuscleGroup? _selectedMuscle;
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<LibraryProvider>();
-    final exercises = _query.isEmpty ? provider.exercises : provider.search(_query);
+    List<Exercise> exercises = _query.isEmpty
+        ? provider.exercises
+        : provider.search(_query);
+    if (_selectedMuscle != null) {
+      exercises = exercises
+          .where((e) => e.muscles.any((m) => m == _selectedMuscle))
+          .toList();
+    }
+    // Group by primary muscle
+    final grouped = <String, List<Exercise>>{};
+    for (final e in exercises) {
+      final group = _selectedMuscle != null
+          ? _selectedMuscle!.name
+          : (e.muscles.isNotEmpty ? e.muscles.first.name : 'Autre');
+      grouped.putIfAbsent(group, () => []).add(e);
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Exercices')),
       body: Column(children: [
+        // Search
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           child: TextField(
             onChanged: (v) {
               HapticService.light();
@@ -43,16 +61,79 @@ class _LibraryScreenState extends State<LibraryScreen> {
             ),
           ),
         ),
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.only(bottom: 20),
-            itemCount: exercises.length,
-            itemBuilder: (ctx, i) => _ExerciseTile(exercise: exercises[i], index: i),
+        // Muscle filter chips
+        SizedBox(
+          height: 44,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            children: [
+              _FilterChip(label: 'Tous', selected: _selectedMuscle == null,
+                  onTap: () => setState(() => _selectedMuscle = null)),
+              ...MuscleGroup.values.map((m) => _FilterChip(
+                label: m.name,
+                selected: _selectedMuscle == m,
+                onTap: () {
+                  HapticService.selection();
+                  setState(() => _selectedMuscle = _selectedMuscle == m ? null : m);
+                },
+              )),
+            ],
           ),
+        ),
+        const SizedBox(height: 8),
+        // Grouped list
+        Expanded(
+          child: grouped.isEmpty
+              ? const Center(child: Text('Aucun exercice trouvé',
+                  style: TextStyle(color: AppColors.textSecondary)))
+              : ListView.builder(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  itemCount: grouped.keys.length,
+                  itemBuilder: (ctx, gi) {
+                    final group = grouped.keys.elementAt(gi);
+                    final list = grouped[group]!;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+                          child: Text(group.toUpperCase(), style: const TextStyle(
+                              color: AppColors.textSecondary, fontSize: 11,
+                              fontWeight: FontWeight.w700, letterSpacing: 1.2)),
+                        ),
+                        ...list.asMap().entries.map((e) =>
+                            _ExerciseTile(exercise: e.value, index: e.key)),
+                      ],
+                    );
+                  }),
         ),
       ]),
     );
   }
+}
+
+class _FilterChip extends StatelessWidget {
+  final String label; final bool selected; final VoidCallback onTap;
+  const _FilterChip({required this.label, required this.selected, required this.onTap});
+  @override
+  Widget build(BuildContext ctx) => BouncyButton(
+    scaleDown: 0.94,
+    onTap: onTap,
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      margin: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: selected ? AppColors.accent : AppColors.card,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(label, style: TextStyle(
+          color: selected ? Colors.black : AppColors.textSecondary,
+          fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+          fontSize: 13)),
+    ),
+  );
 }
 
 class _ExerciseTile extends StatelessWidget {
@@ -104,8 +185,8 @@ class _ExerciseTile extends StatelessWidget {
         ]),
       ),
     ).animate()
-      .fadeIn(delay: Duration(milliseconds: 25 * index), duration: 220.ms)
-      .slideX(begin: 0.04, end: 0, duration: 220.ms, curve: Curves.easeOut);
+      .fadeIn(delay: Duration(milliseconds: 20 * index), duration: 200.ms)
+      .slideX(begin: 0.03, end: 0, curve: Curves.easeOut);
   }
 
   void _showDetail(BuildContext context) {
