@@ -12,6 +12,8 @@ class Playlist {
   final String? warmupPlaylistId;
   final int difficultyScore;
   final DateTime createdAt;
+  final int? reminderHour;
+  final int? reminderMinute;
 
   const Playlist({
     required this.id,
@@ -21,7 +23,12 @@ class Playlist {
     this.warmupPlaylistId,
     required this.difficultyScore,
     required this.createdAt,
+    this.reminderHour,
+    this.reminderMinute,
   });
+
+  bool get hasReminder => reminderHour != null && reminderMinute != null;
+  bool get hasWarmup   => warmupPlaylistId != null;
 
   Color get difficultyColor {
     if (difficultyScore <= 40) return AppColors.easy;
@@ -60,6 +67,8 @@ class Playlist {
     'warmupPlaylistId': warmupPlaylistId,
     'difficultyScore': difficultyScore,
     'createdAt': createdAt.toIso8601String(),
+    'reminderHour': reminderHour,
+    'reminderMinute': reminderMinute,
   };
 
   factory Playlist.fromJson(Map<String, dynamic> j) => Playlist(
@@ -69,5 +78,24 @@ class Playlist {
     warmupPlaylistId: j['warmupPlaylistId'],
     difficultyScore: j['difficultyScore'],
     createdAt: DateTime.parse(j['createdAt']),
+    reminderHour: j['reminderHour'],
+    reminderMinute: j['reminderMinute'],
+  );
+
+  Playlist copyWith({
+    String? name, PlaylistType? type, List<WorkoutBlock>? blocks,
+    String? warmupPlaylistId, int? difficultyScore,
+    int? reminderHour, int? reminderMinute,
+    bool clearWarmup = false, bool clearReminder = false,
+  }) => Playlist(
+    id: id,
+    name: name ?? this.name,
+    type: type ?? this.type,
+    blocks: blocks ?? this.blocks,
+    warmupPlaylistId: clearWarmup ? null : warmupPlaylistId ?? this.warmupPlaylistId,
+    difficultyScore: difficultyScore ?? this.difficultyScore,
+    createdAt: createdAt,
+    reminderHour: clearReminder ? null : reminderHour ?? this.reminderHour,
+    reminderMinute: clearReminder ? null : reminderMinute ?? this.reminderMinute,
   );
 }
